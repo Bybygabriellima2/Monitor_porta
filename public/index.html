@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeDoor IoT</title>
+    <title>SafeDoor Pro</title>
     <script src="/socket.io/socket.io.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     
@@ -14,8 +14,8 @@
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
             --accent-blue: #3b82f6;
-            --status-safe: #10b981; /* Verde Esmeralda */
-            --status-danger: #ef4444; /* Vermelho Intenso */
+            --status-safe: #10b981;
+            --status-danger: #ef4444;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -31,12 +31,8 @@
             padding: 20px;
         }
 
-        .container {
-            width: 100%;
-            max-width: 450px;
-        }
+        .container { width: 100%; max-width: 450px; }
 
-        /* Cards com efeito sutil */
         .card {
             background-color: var(--card-bg);
             border-radius: 24px;
@@ -44,199 +40,130 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             text-align: center;
             border: 1px solid rgba(255,255,255,0.05);
-            transition: transform 0.3s ease;
         }
 
         h2 { font-weight: 800; margin-bottom: 10px; font-size: 1.8rem; }
-        p { color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5; }
+        p { color: var(--text-secondary); margin-bottom: 20px; }
 
         input {
-            width: 100%;
-            padding: 15px;
-            border-radius: 12px;
-            border: 2px solid #334155;
-            background: #0f172a;
-            color: white;
-            font-size: 1rem;
-            margin-bottom: 15px;
-            outline: none;
-            text-align: center;
-            transition: border-color 0.3s;
+            width: 100%; padding: 15px; border-radius: 12px;
+            border: 2px solid #334155; background: #0f172a; color: white;
+            font-size: 1rem; margin-bottom: 15px; text-align: center; outline: none;
         }
         input:focus { border-color: var(--accent-blue); }
 
         button {
-            width: 100%;
-            padding: 16px;
-            border: none;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            margin-bottom: 10px;
-            transition: opacity 0.2s, transform 0.1s;
+            width: 100%; padding: 16px; border: none; border-radius: 12px;
+            font-size: 1rem; font-weight: 600; cursor: pointer; margin-bottom: 10px;
+            transition: transform 0.1s;
         }
         button:active { transform: scale(0.98); }
-
         .btn-primary { background-color: var(--accent-blue); color: white; }
         .btn-outline { background-color: transparent; border: 2px solid var(--accent-blue); color: var(--accent-blue); }
         .btn-warning { background-color: #f59e0b; color: #1e1e1e; }
 
         .hidden { display: none; }
 
-        /* Estilo do Status do Monitor */
+        /* UI do Monitor */
         .status-indicator {
-            height: 150px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 20px;
-            margin: 20px 0;
-            font-size: 1.5rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            padding: 20px; border-radius: 20px; margin: 20px 0;
+            font-size: 1.5rem; font-weight: 800; text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+        .state-closed { border: 2px solid var(--status-safe); color: var(--status-safe); background: rgba(16, 185, 129, 0.1); }
+        .state-open { 
+            border: 2px solid var(--status-danger); color: var(--status-danger); 
+            background: rgba(239, 68, 68, 0.1); animation: pulse 0.5s infinite; 
         }
 
-        .state-closed {
-            background: rgba(16, 185, 129, 0.1);
-            color: var(--status-safe);
-            border: 2px solid var(--status-safe);
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
-        }
+        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.02); } 100% { opacity: 1; transform: scale(1); } }
 
-        .state-open {
-            background: rgba(239, 68, 68, 0.1);
-            color: var(--status-danger);
-            border: 2px solid var(--status-danger);
-            box-shadow: 0 0 40px rgba(239, 68, 68, 0.4);
-            animation: pulse 1s infinite;
+        /* Área da Foto e Câmera */
+        #camera-preview {
+            width: 100%; height: 250px; background: #000; border-radius: 12px;
+            object-fit: cover; margin-bottom: 10px; display: none; border: 2px solid #334155;
         }
+        #intruder-photo {
+            width: 100%; border-radius: 12px; margin-top: 15px; border: 2px solid var(--status-danger);
+            display: none; animation: slideIn 0.5s ease;
+        }
+        
+        /* Lista de Logs */
+        .log-container { margin-top: 20px; text-align: left; }
+        .log-header { font-size: 0.8rem; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid #334155; margin-bottom: 10px; padding-bottom: 5px; }
+        .log-list { list-style: none; max-height: 150px; overflow-y: auto; }
+        .log-item { border-bottom: 1px solid #334155; padding: 10px 0; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; }
+        .log-time { color: var(--text-secondary); font-family: monospace; font-size: 0.8rem; }
 
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.02); }
-            100% { transform: scale(1); }
-        }
-
-        /* Lista de Histórico */
-        .log-container {
-            margin-top: 30px;
-            text-align: left;
-        }
-        .log-header {
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-secondary);
-            margin-bottom: 10px;
-            border-bottom: 1px solid #334155;
-            padding-bottom: 5px;
-        }
-        #log-list {
-            list-style: none;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        .log-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px 0;
-            border-bottom: 1px solid #334155;
-            font-size: 0.9rem;
-            animation: slideIn 0.3s ease;
-        }
-        .log-time { color: var(--text-secondary); font-family: monospace; }
-        .log-msg { color: var(--status-danger); font-weight: 600; }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Dados do Sensor */
-        .sensor-data-box {
-            background: #0f172a;
-            padding: 15px;
-            border-radius: 12px;
-            margin: 15px 0;
-            font-family: monospace;
-        }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div class="card" id="setup-screen">
-            <h2>SafeDoor IoT</h2>
-            <p>Sistema de monitoramento residencial</p>
-            
-            <input type="text" id="room-code" placeholder="Digite o código da sala (ex: CASA)" autocomplete="off">
-            
-            <button class="btn-primary" onclick="startMode('sensor')">
-                📱 Modo Sensor (Celular na Porta)
-            </button>
-            <button class="btn-outline" onclick="startMode('monitor')">
-                💻 Modo Monitor (Visualizar)
-            </button>
+            <h2>SafeDoor Pro</h2>
+            <p>Sistema de Alarme com Foto</p>
+            <input type="text" id="room-code" placeholder="Crie um código (ex: PORTA1)" autocomplete="off">
+            <button class="btn-primary" onclick="startMode('sensor')">📷 Modo Sensor (Na Porta)</button>
+            <button class="btn-outline" onclick="startMode('monitor')">🔔 Modo Monitor (Visualizar)</button>
         </div>
 
         <div class="card hidden" id="sensor-screen">
             <h2 style="color: var(--accent-blue)">Sensor Ativo</h2>
-            <p>Fixe o dispositivo na porta e mantenha a tela desbloqueada.</p>
+            <p style="font-size: 0.9rem;">Mantenha esta tela ligada e visível.</p>
             
-            <div class="sensor-data-box">
-                Movimento: <span id="accel-value" style="color: white">0.00</span>
+            <video id="camera-preview" autoplay playsinline muted></video>
+            <canvas id="camera-canvas" style="display:none;"></canvas> <div style="background: #0f172a; padding: 15px; border-radius: 12px; margin-bottom: 15px;">
+                Status: <strong id="sensor-status" style="color: var(--status-safe)">PARADO</strong>
                 <br>
-                Status: <strong id="sensor-status">PARADO</strong>
+                <span style="font-size: 0.8rem; color: var(--text-secondary)">Sensibilidade: <span id="accel-value">0.00</span></span>
             </div>
 
-            <button class="btn-warning" onclick="requestPermission()">
-                ⚠️ Permitir Sensores (iOS)
-            </button>
-            
-            <p style="font-size: 0.8rem; margin-top: 10px;">
-                Sala conectada: <strong id="sensor-room-display">---</strong>
-            </p>
+            <button class="btn-warning" onclick="enableSensors()">⚠️ Ativar Câmera e Sensores</button>
         </div>
 
         <div class="card hidden" id="monitor-screen">
-            <p>Monitorando Sala: <strong id="display-room" style="color: white">...</strong></p>
+            <p>Monitorando: <strong id="display-room" style="color: white">...</strong></p>
             
-            <div id="status-display" class="status-indicator state-closed">
-                🔒 Fechado
-            </div>
-
+            <div id="status-display" class="status-indicator state-closed">🔒 Fechado</div>
+            
+            <img id="intruder-photo" src="" alt="Foto do Intruso">
+            
             <div class="log-container">
-                <div class="log-header">Últimas Aberturas</div>
-                <ul id="log-list">
-                    <li style="text-align: center; color: #475569; padding: 20px;">Nenhum registro recente.</li>
+                <div class="log-header">Histórico de Acesso</div>
+                <ul id="log-list" class="log-list">
+                    <li style="text-align: center; padding: 10px; color: #475569;">Sem registros recentes</li>
                 </ul>
             </div>
         </div>
     </div>
 
     <script>
+        // Configuração WebSocket reforçada para o Render
         const socket = io({ transports: ['websocket'], upgrade: false });
+        
         let currentMode = '';
         let roomCode = '';
-        
+        let audioContext = null; // Contexto de áudio para o alarme
+
         // Variáveis do Sensor
         let lastX = 0, lastY = 0, lastZ = 0;
-        const SENSITIVITY = 2.5; // Levemente ajustado
+        const SENSITIVITY = 2.5; // Valor ideal para detectar abertura de porta
         let timeout = null;
+        let videoStream = null;
 
         async function startMode(mode) {
             roomCode = document.getElementById('room-code').value.toUpperCase().trim();
-            if (!roomCode) return alert("Por favor, crie um código para a sala.");
+            if (!roomCode) return alert("Por favor, defina um código para conectar os dispositivos!");
 
+            currentMode = mode;
             document.getElementById('setup-screen').classList.add('hidden');
             socket.emit('join_room', roomCode);
 
             if (mode === 'sensor') {
                 document.getElementById('sensor-screen').classList.remove('hidden');
-                document.getElementById('sensor-room-display').innerText = roomCode;
-                initSensorLogic();
+                // Tenta manter a tela ligada (Wake Lock)
                 await keepScreenAwake();
             } else {
                 document.getElementById('monitor-screen').classList.remove('hidden');
@@ -245,113 +172,201 @@
             }
         }
 
-        // --- LÓGICA DO MONITOR (UI/UX) ---
+        // ==================================================
+        // LÓGICA DO MONITOR (Quem vê)
+        // ==================================================
         function initMonitorLogic() {
-            const statusDisplay = document.getElementById('status-display');
-            const logList = document.getElementById('log-list');
+            // Desbloqueia o áudio no primeiro clique do usuário (exigência dos navegadores)
+            document.body.addEventListener('click', () => {
+                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }, { once: true });
 
-            // Recebe status em tempo real
+            // 1. Recebe Status (Aberto/Fechado)
             socket.on('update_monitor', (data) => {
+                const display = document.getElementById('status-display');
                 if (data.status === 'ABERTA') {
-                    statusDisplay.innerText = "🔓 ALERTA: ABERTA";
-                    statusDisplay.className = "status-indicator state-open";
-                    if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                    display.innerText = "🚨 PORTA ABERTA!";
+                    display.className = "status-indicator state-open";
+                    playAlarm(); // Toca Sirene
+                    if(navigator.vibrate) navigator.vibrate([500, 200, 500]); // Vibra celular
                 } else {
-                    statusDisplay.innerText = "🔒 FECHADO";
-                    statusDisplay.className = "status-indicator state-closed";
+                    display.innerText = "🔒 FECHADO";
+                    display.className = "status-indicator state-closed";
                 }
             });
 
-            // Recebe histórico completo ao entrar
-            socket.on('history_data', (history) => {
-                renderLogs(history);
+            // 2. Recebe Foto
+            socket.on('update_photo', (base64Image) => {
+                const img = document.getElementById('intruder-photo');
+                img.src = base64Image;
+                img.style.display = 'block';
             });
 
-            // Recebe apenas um novo log quando acontece
-            socket.on('history_update', (newLog) => {
-                addLogItem(newLog);
-            });
+            // 3. Recebe Histórico
+            socket.on('history_data', renderLogs);
+            socket.on('history_update', (log) => addLogItem(log));
+        }
 
-            function renderLogs(history) {
-                logList.innerHTML = ''; // Limpa lista
-                if(history.length === 0) {
-                    logList.innerHTML = '<li style="text-align: center; color: #475569; padding: 20px;">Nenhum registro recente.</li>';
-                    return;
-                }
-                history.forEach(log => addLogItem(log, false)); // False = append
-            }
+        // Função que gera o som de sirene via código (sem precisar de mp3)
+        function playAlarm() {
+            if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === 'suspended') audioContext.resume();
 
-            function addLogItem(log, prepend = true) {
-                // Remove a mensagem de "vazio" se existir
-                if(logList.innerText.includes('Nenhum registro')) logList.innerHTML = '';
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
 
-                const li = document.createElement('li');
-                li.className = 'log-item';
-                li.innerHTML = `
-                    <span class="log-msg">⚠️ ${log.msg}</span>
-                    <span class="log-time">${log.time}</span>
-                `;
+            osc.type = 'sawtooth'; // Onda dente de serra (som agressivo)
+            osc.frequency.setValueAtTime(880, audioContext.currentTime); // Nota Lá
+            osc.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.5); // Cai o tom (Uoooow)
 
-                if (prepend) {
-                    logList.insertBefore(li, logList.firstChild);
-                } else {
-                    logList.appendChild(li);
-                }
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.5);
+            osc.stop(audioContext.currentTime + 0.5);
+        }
+
+        // ==================================================
+        // LÓGICA DO SENSOR (Quem fica na porta)
+        // ==================================================
+        
+        // Ativa câmera e sensores com permissão
+        async function enableSensors() {
+            await startCamera();
+            requestPermissionIOS();
+        }
+
+        // Liga a câmera frontal
+        async function startCamera() {
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                const video = document.getElementById('camera-preview');
+                video.srcObject = videoStream;
+                video.style.display = 'block';
+                video.play();
+            } catch (err) {
+                alert("Erro ao acessar câmera: " + err.message + ". Verifique se deu permissão.");
             }
         }
 
-        // --- LÓGICA DO SENSOR (Física) ---
+        // Captura o frame atual do vídeo e converte em imagem
+        function captureAndSendPhoto() {
+            if (!videoStream) return;
+            
+            const video = document.getElementById('camera-preview');
+            const canvas = document.getElementById('camera-canvas');
+            const context = canvas.getContext('2d');
+
+            // Reduz a resolução pela metade para envio rápido
+            canvas.width = video.videoWidth / 2;
+            canvas.height = video.videoHeight / 2;
+            
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Converte para texto Base64 (JPG qualidade 50%)
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.5); 
+            
+            socket.emit('sensor_photo', { room: roomCode, image: dataUrl });
+        }
+
+        // Inicia leitura do acelerômetro
         function initSensorLogic() {
-            const handleMotion = (event) => {
+            window.addEventListener('devicemotion', (event) => {
                 const acc = event.accelerationIncludingGravity;
                 if (!acc) return;
 
-                const deltaX = Math.abs(acc.x - lastX);
-                const deltaY = Math.abs(acc.y - lastY);
-                const deltaZ = Math.abs(acc.z - lastZ);
+                const delta = Math.max(
+                    Math.abs(acc.x - lastX),
+                    Math.abs(acc.y - lastY),
+                    Math.abs(acc.z - lastZ)
+                );
 
-                if (deltaX > SENSITIVITY || deltaY > SENSITIVITY || deltaZ > SENSITIVITY) {
-                    triggerOpenState(Math.max(deltaX, deltaY, deltaZ));
+                if (delta > SENSITIVITY) {
+                    triggerOpenState(delta);
                 }
 
-                lastX = acc.x;
-                lastY = acc.y;
-                lastZ = acc.z;
-            };
-
-            if (window.DeviceMotionEvent) window.addEventListener('devicemotion', handleMotion, true);
+                lastX = acc.x; lastY = acc.y; lastZ = acc.z;
+            }, true);
         }
 
+        // Dispara o evento de porta aberta
         function triggerOpenState(val) {
-            document.getElementById('sensor-status').innerText = 'MOVIMENTO DETECTADO';
-            document.getElementById('sensor-status').style.color = '#ef4444';
+            const statusTxt = document.getElementById('sensor-status');
+            
+            // Se já estiver disparado (status 'ABERTA'), não faz nada para não floodar
+            if (statusTxt.innerText === 'ABERTA') return; 
+
+            // 1. Atualiza UI Local
+            statusTxt.innerText = 'ABERTA';
+            statusTxt.style.color = '#ef4444';
             document.getElementById('accel-value').innerText = val.toFixed(2);
 
-            // Evita flood de mensagens (Debounce)
+            // 2. Envia alerta pro servidor
             socket.emit('sensor_data', { room: roomCode, status: 'ABERTA', val: val });
             
-            if(timeout) clearTimeout(timeout);
+            // 3. Tira e envia a foto!
+            captureAndSendPhoto();
 
+            // 4. Reseta após 4 segundos
+            if(timeout) clearTimeout(timeout);
             timeout = setTimeout(() => {
                 socket.emit('sensor_data', { room: roomCode, status: 'FECHADA', val: 0 });
-                document.getElementById('sensor-status').innerText = 'PARADO';
-                document.getElementById('sensor-status').style.color = '#10b981';
-            }, 2500); // Espera 2.5s para resetar
+                statusTxt.innerText = 'PARADO';
+                statusTxt.style.color = '#10b981';
+            }, 4000);
         }
 
+        // ==================================================
+        // UTILITÁRIOS
+        // ==================================================
+        function renderLogs(history) {
+            const list = document.getElementById('log-list');
+            list.innerHTML = '';
+            if (history.length === 0) {
+                list.innerHTML = '<li style="text-align: center; padding: 10px; color: #475569;">Sem registros recentes</li>';
+                return;
+            }
+            history.forEach(log => addLogItem(log, false));
+        }
+
+        function addLogItem(log, prepend = true) {
+            // Limpa msg de "vazio"
+            const list = document.getElementById('log-list');
+            if(list.innerText.includes('Sem registros')) list.innerHTML = '';
+
+            const li = document.createElement('li');
+            li.className = 'log-item';
+            li.innerHTML = `
+                <span style="color: #ef4444; font-weight:bold; display:flex; align-items:center; gap:5px;">
+                    ⚠️ Abertura
+                </span> 
+                <span class="log-time">${log.time}</span>
+            `;
+            prepend ? list.insertBefore(li, list.firstChild) : list.appendChild(li);
+        }
+
+        // Wake Lock (Impede tela de desligar)
         async function keepScreenAwake() {
-            try {
-                if ('wakeLock' in navigator) await navigator.wakeLock.request('screen');
-            } catch (e) { console.log(e); }
+            try { 
+                if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); 
+                console.log("Wake Lock Ativado");
+            } catch(e){ console.log("Wake Lock falhou ou sem bateria"); }
         }
 
-        function requestPermission() {
+        // Permissão iOS 13+
+        function requestPermissionIOS() {
             if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission()
-                    .then(r => r === 'granted' ? alert("OK!") : alert("Negado"))
-                    .catch(console.error);
+                DeviceMotionEvent.requestPermission().then(r => {
+                    if(r==='granted') { 
+                        initSensorLogic(); 
+                        alert("Acelerômetro Ativado!"); 
+                    } else { alert("Permissão negada para sensores."); }
+                }).catch(console.error);
             } else {
-                alert("API não requer permissão neste dispositivo.");
+                // Android ou iOS antigo
+                initSensorLogic();
+                alert("Sensores iniciados (Android/PC)");
             }
         }
     </script>

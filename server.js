@@ -1,58 +1,64 @@
 const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
-const io = require('socket.io')(http);
+// Configura o Socket.io aumentando o limite de tamanho para aceitar fotos (10MB)
+const io = require('socket.io')(http, {
+    maxHttpBufferSize: 1e7 
+});
 const path = require('path');
 
+// Serve os arquivos da pasta public
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Armazena o histórico em memória: { 'SALA1': [{time: '...', status: '...'}, ...] }
+// Armazena o histórico em memória: { 'SALA1': [{time: '...', msg: '...'}, ...] }
 const roomLogs = {}; 
 
 io.on('connection', (socket) => {
-    console.log('Novo dispositivo:', socket.id);
+    console.log('Novo dispositivo conectado:', socket.id);
 
+    // 1. Entrar na Sala
     socket.on('join_room', (roomCode) => {
         socket.join(roomCode);
-        
-        // Se já existir histórico dessa sala, envia para quem acabou de entrar (o Monitor)
+        // Se já tem histórico, manda pro Monitor que acabou de entrar
         if (roomLogs[roomCode]) {
             socket.emit('history_data', roomLogs[roomCode]);
         }
     });
 
+    // 2. Receber Dados do Sensor (Movimento)
     socket.on('sensor_data', (data) => {
-        // Apenas registramos no histórico se a porta ABRIU (para não encher de "FECHADA")
+        // Se a porta abriu, grava no histórico
         if (data.status === 'ABERTA') {
-            if (!roomLogs[data.room]) {
-                roomLogs[data.room] = [];
-            }
+            if (!roomLogs[data.room]) roomLogs[data.room] = [];
 
             const now = new Date();
-            const timeString = now.toLocaleTimeString('pt-BR');
-            const logEntry = { time: timeString, msg: 'Porta Aberta' };
+            const logEntry = { time: now.toLocaleTimeString('pt-BR'), msg: 'Porta Aberta' };
 
-            // Adiciona no início da lista
+            // Adiciona no topo da lista e mantém só os últimos 10
             roomLogs[data.room].unshift(logEntry);
+            if (roomLogs[data.room].length > 10) roomLogs[data.room].pop();
 
-            // Mantém apenas os últimos 10 registros para economizar memória
-            if (roomLogs[data.room].length > 10) {
-                roomLogs[data.room].pop();
-            }
-
-            // Envia o log atualizado para a sala
+            // Avisa a todos na sala que houve um novo registro
             io.to(data.room).emit('history_update', logEntry);
         }
-
-        // Envia o status em tempo real (Aberto/Fechado)
+        
+        // Envia o status (Aberta/Fechada) para o Monitor
         socket.to(data.room).emit('update_monitor', data);
     });
 
+    // 3. Receber Foto 
+    socket.on('sensor_photo', (data) => {
+        // data = { room: '...', image: 'base64...' }
+        // Repassa a foto apenas para quem está na sala (o Monitor)
+        socket.to(data.room).emit('update_photo', data.image);
+    });
+
     socket.on('disconnect', () => {
-        // console.log('Saiu');
+        // Usuário saiu
     });
 });
 
+// Porta dinâmica para o Render
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
