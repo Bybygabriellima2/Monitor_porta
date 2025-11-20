@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detector de Porta</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f4f4; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
+        button { padding: 10px 20px; font-size: 16px; margin: 10px; cursor: pointer; border: none; border-radius: 5px; }
+        .btn-sensor { background-color: #007bff; color: white; }
+        .btn-monitor { background-color: #28a745; color: white; }
+        input { padding: 10px; font-size: 16px; width: 80%; margin-bottom: 10px; }
+        #status-display { font-size: 24px; font-weight: bold; margin-top: 20px; padding: 20px; border-radius: 5px; }
+        .status-closed { background-color: #d4edda; color: #155724; }
+        .status-open { background-color: #f8d7da; color: #721c24; }
+        .hidden { display: none; }
+        .warning { color: red; font-size: 12px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="card" id="setup-screen">
+        <h2>Configuração</h2>
+        <p>Escolha o modo deste dispositivo:</p>
+        <input type="text" id="room-code" placeholder="Crie um código (ex: PORTA1)">
+        <br>
+        <button class="btn-sensor" onclick="startMode('sensor')">Sou o SENSOR (Fico na porta)</button>
+        <br>
+        <button class="btn-monitor" onclick="startMode('monitor')">Sou o MONITOR (Vejo o status)</button>
+    </div>
+
+    <div class="card hidden" id="sensor-screen">
+        <h2>Modo Sensor Ativo</h2>
+        <p>Cole este celular na porta.</p>
+        <p>Sensibilidade atual: <span id="accel-value">0</span></p>
+        <p>Status enviado: <strong id="sensor-status">PARADO</strong></p>
+        <p class="warning">Mantenha esta aba aberta e visível.</p>
+        <button onclick="requestPermission()" style="background:#ffc107; color:black;">Permitir Sensores (iOS/Android)</button>
+    </div>
+
+    <div class="card hidden" id="monitor-screen">
+        <h2>Monitoramento</h2>
+        <p>Código da Sala: <span id="display-room"></span></p>
+        <div id="status-display" class="status-closed">AGUARDANDO...</div>
+        <p>Última atualização: <span id="last-update">-</span></p>
+    </div>
+
+    <script>
+        // CONFIGURAÇÃO 1: Força WebSocket para evitar erros de conexão no Render
+        const socket = io({
+            transports: ['websocket'],
+            upgrade: false
+        });
+
+        let currentMode = '';
+        let roomCode = '';
+        
+        // Variáveis para lógica de movimento
+        let lastX = 0, lastY = 0, lastZ = 0;
+        const SENSITIVITY = 2.0; 
+
+        async function startMode(mode) {
+            roomCode = document.getElementById('room-code').value.trim();
+            if (!roomCode) return alert("Digite um código para conectar os aparelhos!");
+
+            currentMode = mode;
+            document.getElementById('setup-screen').classList.add('hidden');
+            
+            // Conecta na sala específica
+            socket.emit('join_room', roomCode);
+
+            if (mode === 'sensor') {
+                document.getElementById('sensor-screen').classList.remove('hidden');
+                initSensorLogic();
+                
+                // CONFIGURAÇÃO 2: Tenta manter a tela ligada (Wake Lock)
+                await keepScreenAwake();
+            } else {
+                document.getElementById('monitor-screen').classList.remove('hidden');
+                document.getElementById('display-room').innerText = roomCode;
+                initMonitorLogic();
+            }
+        }
+
+        // --- LÓGICA PARA MANTER TELA LIGADA (Wake Lock API) ---
+        async function keepScreenAwake() {
+            try {
+                if ('wakeLock' in navigator) {
+                    await navigator.wakeLock.request('screen');
+                    console.log('Wake Lock ativado: Tela não desligará.');
+                }
+            } catch (err) {
+                console.log('Erro ao ativar Wake Lock (ou sem bateria suficiente):', err.name, err.message);
+            }
+        }
+
+        // --- LÓGICA DO MONITOR ---
+        function initMonitorLogic() {
+            socket.on('update_monitor', (data) => {
+                const display = document.getElementById('status-display');
+                const timeDisplay = document.getElementById('last-update');
+                
+                if (data.status === 'ABERTA') {
+                    display.innerText = "PORTA MOVENDO/ABERTA!";
+                    display.className = "status-open";
+                    if(navigator.vibrate) navigator.vibrate(200);
+                } else {
+                    display.innerText = "PORTA FECHADA/PARADA";
+                    display.className = "status-closed";
+                }
+                
+                const now = new Date();
+                timeDisplay.innerText = now.toLocaleTimeString();
+            });
+        }
+
+        // --- LÓGICA DO SENSOR ---
+        function initSensorLogic() {
+            const handleMotion = (event) => {
+                const acc = event.accelerationIncludingGravity;
+                if (!acc) return;
+
+                const deltaX = Math.abs(acc.x - lastX);
+                const deltaY = Math.abs(acc.y - lastY);
+                const deltaZ = Math.abs(acc.z - lastZ);
+
+                if (deltaX > SENSITIVITY || deltaY > SENSITIVITY || deltaZ > SENSITIVITY) {
+                    updateSensorStatus('ABERTA', Math.max(deltaX, deltaY, deltaZ));
+                } else {
+                    updateSensorStatus('FECHADA', 0);
+                }
+
+                lastX = acc.x;
+                lastY = acc.y;
+                lastZ = acc.z;
+            };
+
+            if (window.DeviceMotionEvent) {
+                window.addEventListener('devicemotion', handleMotion, true);
+            }
+        }
+
+        let timeout = null;
+        function updateSensorStatus(status, val) {
+            document.getElementById('sensor-status').innerText = status;
+            document.getElementById('accel-value').innerText = val.toFixed(2);
+
+            if (status === 'ABERTA') {
+                if(timeout) clearTimeout(timeout);
+                socket.emit('sensor_data', { room: roomCode, status: 'ABERTA', val: val });
+                
+                timeout = setTimeout(() => {
+                    socket.emit('sensor_data', { room: roomCode, status: 'FECHADA', val: 0 });
+                    document.getElementById('sensor-status').innerText = 'FECHADA';
+                }, 2000);
+            }
+        }
+
+        function requestPermission() {
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission()
+                    .then(response => {
+                        if (response == 'granted') {
+                            alert("Permissão concedida!");
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                alert("Seu dispositivo provavelmente já tem permissão ou não suporta a API.");
+            }
+        }
+    </script>
+</body>
+</html>
