@@ -63,8 +63,6 @@
         .btn-warning { background-color: #f59e0b; color: #1e1e1e; }
 
         .hidden { display: none; }
-
-        /* UI do Monitor */
         .status-indicator {
             padding: 20px; border-radius: 20px; margin: 20px 0;
             font-size: 1.5rem; font-weight: 800; text-transform: uppercase;
@@ -77,8 +75,6 @@
         }
 
         @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.02); } 100% { opacity: 1; transform: scale(1); } }
-
-        /* Área da Foto e Câmera */
         #camera-preview {
             width: 100%; height: 250px; background: #000; border-radius: 12px;
             object-fit: cover; margin-bottom: 10px; display: none; border: 2px solid #334155;
@@ -87,8 +83,7 @@
             width: 100%; border-radius: 12px; margin-top: 15px; border: 2px solid var(--status-danger);
             display: none; animation: slideIn 0.5s ease;
         }
-        
-        /* Lista de Logs */
+       
         .log-container { margin-top: 20px; text-align: left; }
         .log-header { font-size: 0.8rem; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid #334155; margin-bottom: 10px; padding-bottom: 5px; }
         .log-list { list-style: none; max-height: 150px; overflow-y: auto; }
@@ -140,16 +135,13 @@
     </div>
 
     <script>
-        // Configuração WebSocket reforçada para o Render
         const socket = io({ transports: ['websocket'], upgrade: false });
         
         let currentMode = '';
         let roomCode = '';
-        let audioContext = null; // Contexto de áudio para o alarme
-
-        // Variáveis do Sensor
+        let audioContext = null; 
         let lastX = 0, lastY = 0, lastZ = 0;
-        const SENSITIVITY = 2.5; // Valor ideal para detectar abertura de porta
+        const SENSITIVITY = 2.5; 
         let timeout = null;
         let videoStream = null;
 
@@ -163,7 +155,6 @@
 
             if (mode === 'sensor') {
                 document.getElementById('sensor-screen').classList.remove('hidden');
-                // Tenta manter a tela ligada (Wake Lock)
                 await keepScreenAwake();
             } else {
                 document.getElementById('monitor-screen').classList.remove('hidden');
@@ -172,42 +163,33 @@
             }
         }
 
-        // ==================================================
-        // LÓGICA DO MONITOR (Quem vê)
-        // ==================================================
         function initMonitorLogic() {
-            // Desbloqueia o áudio no primeiro clique do usuário (exigência dos navegadores)
             document.body.addEventListener('click', () => {
                 if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
             }, { once: true });
-
-            // 1. Recebe Status (Aberto/Fechado)
             socket.on('update_monitor', (data) => {
                 const display = document.getElementById('status-display');
                 if (data.status === 'ABERTA') {
                     display.innerText = "🚨 PORTA ABERTA!";
                     display.className = "status-indicator state-open";
-                    playAlarm(); // Toca Sirene
-                    if(navigator.vibrate) navigator.vibrate([500, 200, 500]); // Vibra celular
+                    playAlarm();
+                    if(navigator.vibrate) navigator.vibrate([500, 200, 500]); 
                 } else {
                     display.innerText = "🔒 FECHADO";
                     display.className = "status-indicator state-closed";
                 }
             });
 
-            // 2. Recebe Foto
             socket.on('update_photo', (base64Image) => {
                 const img = document.getElementById('intruder-photo');
                 img.src = base64Image;
                 img.style.display = 'block';
             });
 
-            // 3. Recebe Histórico
             socket.on('history_data', renderLogs);
             socket.on('history_update', (log) => addLogItem(log));
         }
 
-        // Função que gera o som de sirene via código (sem precisar de mp3)
         function playAlarm() {
             if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
             if (audioContext.state === 'suspended') audioContext.resume();
@@ -215,9 +197,9 @@
             const osc = audioContext.createOscillator();
             const gain = audioContext.createGain();
 
-            osc.type = 'sawtooth'; // Onda dente de serra (som agressivo)
-            osc.frequency.setValueAtTime(880, audioContext.currentTime); // Nota Lá
-            osc.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.5); // Cai o tom (Uoooow)
+            osc.type = 'sawtooth'; 
+            osc.frequency.setValueAtTime(880, audioContext.currentTime); 
+            osc.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.5); 
 
             osc.connect(gain);
             gain.connect(audioContext.destination);
@@ -227,17 +209,11 @@
             osc.stop(audioContext.currentTime + 0.5);
         }
 
-        // ==================================================
-        // LÓGICA DO SENSOR (Quem fica na porta)
-        // ==================================================
-        
-        // Ativa câmera e sensores com permissão
         async function enableSensors() {
             await startCamera();
             requestPermissionIOS();
         }
 
-        // Liga a câmera frontal
         async function startCamera() {
             try {
                 videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
@@ -250,7 +226,6 @@
             }
         }
 
-        // Captura o frame atual do vídeo e converte em imagem
         function captureAndSendPhoto() {
             if (!videoStream) return;
             
@@ -258,19 +233,16 @@
             const canvas = document.getElementById('camera-canvas');
             const context = canvas.getContext('2d');
 
-            // Reduz a resolução pela metade para envio rápido
             canvas.width = video.videoWidth / 2;
             canvas.height = video.videoHeight / 2;
             
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // Converte para texto Base64 (JPG qualidade 50%)
+
             const dataUrl = canvas.toDataURL('image/jpeg', 0.5); 
             
             socket.emit('sensor_photo', { room: roomCode, image: dataUrl });
         }
 
-        // Inicia leitura do acelerômetro
         function initSensorLogic() {
             window.addEventListener('devicemotion', (event) => {
                 const acc = event.accelerationIncludingGravity;
@@ -290,25 +262,19 @@
             }, true);
         }
 
-        // Dispara o evento de porta aberta
         function triggerOpenState(val) {
             const statusTxt = document.getElementById('sensor-status');
-            
-            // Se já estiver disparado (status 'ABERTA'), não faz nada para não floodar
+  
             if (statusTxt.innerText === 'ABERTA') return; 
 
-            // 1. Atualiza UI Local
             statusTxt.innerText = 'ABERTA';
             statusTxt.style.color = '#ef4444';
             document.getElementById('accel-value').innerText = val.toFixed(2);
 
-            // 2. Envia alerta pro servidor
             socket.emit('sensor_data', { room: roomCode, status: 'ABERTA', val: val });
-            
-            // 3. Tira e envia a foto!
+
             captureAndSendPhoto();
 
-            // 4. Reseta após 4 segundos
             if(timeout) clearTimeout(timeout);
             timeout = setTimeout(() => {
                 socket.emit('sensor_data', { room: roomCode, status: 'FECHADA', val: 0 });
@@ -317,9 +283,7 @@
             }, 4000);
         }
 
-        // ==================================================
-        // UTILITÁRIOS
-        // ==================================================
+
         function renderLogs(history) {
             const list = document.getElementById('log-list');
             list.innerHTML = '';
@@ -346,7 +310,6 @@
             prepend ? list.insertBefore(li, list.firstChild) : list.appendChild(li);
         }
 
-        // Wake Lock (Impede tela de desligar)
         async function keepScreenAwake() {
             try { 
                 if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); 
@@ -354,7 +317,6 @@
             } catch(e){ console.log("Wake Lock falhou ou sem bateria"); }
         }
 
-        // Permissão iOS 13+
         function requestPermissionIOS() {
             if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
                 DeviceMotionEvent.requestPermission().then(r => {
@@ -364,7 +326,6 @@
                     } else { alert("Permissão negada para sensores."); }
                 }).catch(console.error);
             } else {
-                // Android ou iOS antigo
                 initSensorLogic();
                 alert("Sensores iniciados (Android/PC)");
             }
