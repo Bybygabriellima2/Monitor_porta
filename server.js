@@ -4,33 +4,56 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
 
-// Serve os arquivos estáticos da pasta public
 app.use(express.static(path.join(__dirname, 'public')));
 
-io.on('connection', (socket) => {
-    console.log('Novo dispositivo conectado:', socket.id);
+// Armazena o histórico em memória: { 'SALA1': [{time: '...', status: '...'}, ...] }
+const roomLogs = {}; 
 
-    // Evento para entrar em uma sala (parear dispositivos)
+io.on('connection', (socket) => {
+    console.log('Novo dispositivo:', socket.id);
+
     socket.on('join_room', (roomCode) => {
         socket.join(roomCode);
-        console.log(`Socket ${socket.id} entrou na sala ${roomCode}`);
+        
+        // Se já existir histórico dessa sala, envia para quem acabou de entrar (o Monitor)
+        if (roomLogs[roomCode]) {
+            socket.emit('history_data', roomLogs[roomCode]);
+        }
     });
 
-    // Evento recebido do SENSOR contendo dados de movimento
     socket.on('sensor_data', (data) => {
-        // data contém: { room: '123', status: 'ABERTA', value: 15.5 }
-        // Envia apenas para quem está na mesma sala (o Monitor)
+        // Apenas registramos no histórico se a porta ABRIU (para não encher de "FECHADA")
+        if (data.status === 'ABERTA') {
+            if (!roomLogs[data.room]) {
+                roomLogs[data.room] = [];
+            }
+
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('pt-BR');
+            const logEntry = { time: timeString, msg: 'Porta Aberta' };
+
+            // Adiciona no início da lista
+            roomLogs[data.room].unshift(logEntry);
+
+            // Mantém apenas os últimos 10 registros para economizar memória
+            if (roomLogs[data.room].length > 10) {
+                roomLogs[data.room].pop();
+            }
+
+            // Envia o log atualizado para a sala
+            io.to(data.room).emit('history_update', logEntry);
+        }
+
+        // Envia o status em tempo real (Aberto/Fechado)
         socket.to(data.room).emit('update_monitor', data);
     });
 
     socket.on('disconnect', () => {
-        console.log('Dispositivo desconectado');
+        // console.log('Saiu');
     });
 });
 
-
 const PORT = process.env.PORT || 3000;
-
 http.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
 });

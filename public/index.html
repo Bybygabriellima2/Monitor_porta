@@ -3,79 +3,240 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detector de Porta</title>
+    <title>SafeDoor IoT</title>
     <script src="/socket.io/socket.io.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f4f4; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
-        button { padding: 10px 20px; font-size: 16px; margin: 10px; cursor: pointer; border: none; border-radius: 5px; }
-        .btn-sensor { background-color: #007bff; color: white; }
-        .btn-monitor { background-color: #28a745; color: white; }
-        input { padding: 10px; font-size: 16px; width: 80%; margin-bottom: 10px; }
-        #status-display { font-size: 24px; font-weight: bold; margin-top: 20px; padding: 20px; border-radius: 5px; }
-        .status-closed { background-color: #d4edda; color: #155724; }
-        .status-open { background-color: #f8d7da; color: #721c24; }
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-blue: #3b82f6;
+            --status-safe: #10b981; /* Verde Esmeralda */
+            --status-danger: #ef4444; /* Vermelho Intenso */
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+        }
+
+        /* Cards com efeito sutil */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: transform 0.3s ease;
+        }
+
+        h2 { font-weight: 800; margin-bottom: 10px; font-size: 1.8rem; }
+        p { color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5; }
+
+        input {
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            border: 2px solid #334155;
+            background: #0f172a;
+            color: white;
+            font-size: 1rem;
+            margin-bottom: 15px;
+            outline: none;
+            text-align: center;
+            transition: border-color 0.3s;
+        }
+        input:focus { border-color: var(--accent-blue); }
+
+        button {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+        button:active { transform: scale(0.98); }
+
+        .btn-primary { background-color: var(--accent-blue); color: white; }
+        .btn-outline { background-color: transparent; border: 2px solid var(--accent-blue); color: var(--accent-blue); }
+        .btn-warning { background-color: #f59e0b; color: #1e1e1e; }
+
         .hidden { display: none; }
-        .warning { color: red; font-size: 12px; margin-top: 10px; }
+
+        /* Estilo do Status do Monitor */
+        .status-indicator {
+            height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 20px;
+            margin: 20px 0;
+            font-size: 1.5rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .state-closed {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--status-safe);
+            border: 2px solid var(--status-safe);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
+        }
+
+        .state-open {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--status-danger);
+            border: 2px solid var(--status-danger);
+            box-shadow: 0 0 40px rgba(239, 68, 68, 0.4);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        /* Lista de Histórico */
+        .log-container {
+            margin-top: 30px;
+            text-align: left;
+        }
+        .log-header {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 5px;
+        }
+        #log-list {
+            list-style: none;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .log-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #334155;
+            font-size: 0.9rem;
+            animation: slideIn 0.3s ease;
+        }
+        .log-time { color: var(--text-secondary); font-family: monospace; }
+        .log-msg { color: var(--status-danger); font-weight: 600; }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Dados do Sensor */
+        .sensor-data-box {
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 12px;
+            margin: 15px 0;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
 
-    <div class="card" id="setup-screen">
-        <h2>Configuração</h2>
-        <p>Escolha o modo deste dispositivo:</p>
-        <input type="text" id="room-code" placeholder="Crie um código (ex: PORTA1)">
-        <br>
-        <button class="btn-sensor" onclick="startMode('sensor')">Sou o SENSOR (Fico na porta)</button>
-        <br>
-        <button class="btn-monitor" onclick="startMode('monitor')">Sou o MONITOR (Vejo o status)</button>
-    </div>
+    <div class="container">
+        <div class="card" id="setup-screen">
+            <h2>SafeDoor IoT</h2>
+            <p>Sistema de monitoramento residencial</p>
+            
+            <input type="text" id="room-code" placeholder="Digite o código da sala (ex: CASA)" autocomplete="off">
+            
+            <button class="btn-primary" onclick="startMode('sensor')">
+                📱 Modo Sensor (Celular na Porta)
+            </button>
+            <button class="btn-outline" onclick="startMode('monitor')">
+                💻 Modo Monitor (Visualizar)
+            </button>
+        </div>
 
-    <div class="card hidden" id="sensor-screen">
-        <h2>Modo Sensor Ativo</h2>
-        <p>Cole este celular na porta.</p>
-        <p>Sensibilidade atual: <span id="accel-value">0</span></p>
-        <p>Status enviado: <strong id="sensor-status">PARADO</strong></p>
-        <p class="warning">Mantenha esta aba aberta e visível.</p>
-        <button onclick="requestPermission()" style="background:#ffc107; color:black;">Permitir Sensores (iOS/Android)</button>
-    </div>
+        <div class="card hidden" id="sensor-screen">
+            <h2 style="color: var(--accent-blue)">Sensor Ativo</h2>
+            <p>Fixe o dispositivo na porta e mantenha a tela desbloqueada.</p>
+            
+            <div class="sensor-data-box">
+                Movimento: <span id="accel-value" style="color: white">0.00</span>
+                <br>
+                Status: <strong id="sensor-status">PARADO</strong>
+            </div>
 
-    <div class="card hidden" id="monitor-screen">
-        <h2>Monitoramento</h2>
-        <p>Código da Sala: <span id="display-room"></span></p>
-        <div id="status-display" class="status-closed">AGUARDANDO...</div>
-        <p>Última atualização: <span id="last-update">-</span></p>
+            <button class="btn-warning" onclick="requestPermission()">
+                ⚠️ Permitir Sensores (iOS)
+            </button>
+            
+            <p style="font-size: 0.8rem; margin-top: 10px;">
+                Sala conectada: <strong id="sensor-room-display">---</strong>
+            </p>
+        </div>
+
+        <div class="card hidden" id="monitor-screen">
+            <p>Monitorando Sala: <strong id="display-room" style="color: white">...</strong></p>
+            
+            <div id="status-display" class="status-indicator state-closed">
+                🔒 Fechado
+            </div>
+
+            <div class="log-container">
+                <div class="log-header">Últimas Aberturas</div>
+                <ul id="log-list">
+                    <li style="text-align: center; color: #475569; padding: 20px;">Nenhum registro recente.</li>
+                </ul>
+            </div>
+        </div>
     </div>
 
     <script>
-        // CONFIGURAÇÃO 1: Força WebSocket para evitar erros de conexão no Render
-        const socket = io({
-            transports: ['websocket'],
-            upgrade: false
-        });
-
+        const socket = io({ transports: ['websocket'], upgrade: false });
         let currentMode = '';
         let roomCode = '';
         
-        // Variáveis para lógica de movimento
+        // Variáveis do Sensor
         let lastX = 0, lastY = 0, lastZ = 0;
-        const SENSITIVITY = 2.0; 
+        const SENSITIVITY = 2.5; // Levemente ajustado
+        let timeout = null;
 
         async function startMode(mode) {
-            roomCode = document.getElementById('room-code').value.trim();
-            if (!roomCode) return alert("Digite um código para conectar os aparelhos!");
+            roomCode = document.getElementById('room-code').value.toUpperCase().trim();
+            if (!roomCode) return alert("Por favor, crie um código para a sala.");
 
-            currentMode = mode;
             document.getElementById('setup-screen').classList.add('hidden');
-            
-            // Conecta na sala específica
             socket.emit('join_room', roomCode);
 
             if (mode === 'sensor') {
                 document.getElementById('sensor-screen').classList.remove('hidden');
+                document.getElementById('sensor-room-display').innerText = roomCode;
                 initSensorLogic();
-                
-                // CONFIGURAÇÃO 2: Tenta manter a tela ligada (Wake Lock)
                 await keepScreenAwake();
             } else {
                 document.getElementById('monitor-screen').classList.remove('hidden');
@@ -84,39 +245,62 @@
             }
         }
 
-        // --- LÓGICA PARA MANTER TELA LIGADA (Wake Lock API) ---
-        async function keepScreenAwake() {
-            try {
-                if ('wakeLock' in navigator) {
-                    await navigator.wakeLock.request('screen');
-                    console.log('Wake Lock ativado: Tela não desligará.');
+        // --- LÓGICA DO MONITOR (UI/UX) ---
+        function initMonitorLogic() {
+            const statusDisplay = document.getElementById('status-display');
+            const logList = document.getElementById('log-list');
+
+            // Recebe status em tempo real
+            socket.on('update_monitor', (data) => {
+                if (data.status === 'ABERTA') {
+                    statusDisplay.innerText = "🔓 ALERTA: ABERTA";
+                    statusDisplay.className = "status-indicator state-open";
+                    if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                } else {
+                    statusDisplay.innerText = "🔒 FECHADO";
+                    statusDisplay.className = "status-indicator state-closed";
                 }
-            } catch (err) {
-                console.log('Erro ao ativar Wake Lock (ou sem bateria suficiente):', err.name, err.message);
+            });
+
+            // Recebe histórico completo ao entrar
+            socket.on('history_data', (history) => {
+                renderLogs(history);
+            });
+
+            // Recebe apenas um novo log quando acontece
+            socket.on('history_update', (newLog) => {
+                addLogItem(newLog);
+            });
+
+            function renderLogs(history) {
+                logList.innerHTML = ''; // Limpa lista
+                if(history.length === 0) {
+                    logList.innerHTML = '<li style="text-align: center; color: #475569; padding: 20px;">Nenhum registro recente.</li>';
+                    return;
+                }
+                history.forEach(log => addLogItem(log, false)); // False = append
+            }
+
+            function addLogItem(log, prepend = true) {
+                // Remove a mensagem de "vazio" se existir
+                if(logList.innerText.includes('Nenhum registro')) logList.innerHTML = '';
+
+                const li = document.createElement('li');
+                li.className = 'log-item';
+                li.innerHTML = `
+                    <span class="log-msg">⚠️ ${log.msg}</span>
+                    <span class="log-time">${log.time}</span>
+                `;
+
+                if (prepend) {
+                    logList.insertBefore(li, logList.firstChild);
+                } else {
+                    logList.appendChild(li);
+                }
             }
         }
 
-        // --- LÓGICA DO MONITOR ---
-        function initMonitorLogic() {
-            socket.on('update_monitor', (data) => {
-                const display = document.getElementById('status-display');
-                const timeDisplay = document.getElementById('last-update');
-                
-                if (data.status === 'ABERTA') {
-                    display.innerText = "PORTA MOVENDO/ABERTA!";
-                    display.className = "status-open";
-                    if(navigator.vibrate) navigator.vibrate(200);
-                } else {
-                    display.innerText = "PORTA FECHADA/PARADA";
-                    display.className = "status-closed";
-                }
-                
-                const now = new Date();
-                timeDisplay.innerText = now.toLocaleTimeString();
-            });
-        }
-
-        // --- LÓGICA DO SENSOR ---
+        // --- LÓGICA DO SENSOR (Física) ---
         function initSensorLogic() {
             const handleMotion = (event) => {
                 const acc = event.accelerationIncludingGravity;
@@ -127,9 +311,7 @@
                 const deltaZ = Math.abs(acc.z - lastZ);
 
                 if (deltaX > SENSITIVITY || deltaY > SENSITIVITY || deltaZ > SENSITIVITY) {
-                    updateSensorStatus('ABERTA', Math.max(deltaX, deltaY, deltaZ));
-                } else {
-                    updateSensorStatus('FECHADA', 0);
+                    triggerOpenState(Math.max(deltaX, deltaY, deltaZ));
                 }
 
                 lastX = acc.x;
@@ -137,38 +319,39 @@
                 lastZ = acc.z;
             };
 
-            if (window.DeviceMotionEvent) {
-                window.addEventListener('devicemotion', handleMotion, true);
-            }
+            if (window.DeviceMotionEvent) window.addEventListener('devicemotion', handleMotion, true);
         }
 
-        let timeout = null;
-        function updateSensorStatus(status, val) {
-            document.getElementById('sensor-status').innerText = status;
+        function triggerOpenState(val) {
+            document.getElementById('sensor-status').innerText = 'MOVIMENTO DETECTADO';
+            document.getElementById('sensor-status').style.color = '#ef4444';
             document.getElementById('accel-value').innerText = val.toFixed(2);
 
-            if (status === 'ABERTA') {
-                if(timeout) clearTimeout(timeout);
-                socket.emit('sensor_data', { room: roomCode, status: 'ABERTA', val: val });
-                
-                timeout = setTimeout(() => {
-                    socket.emit('sensor_data', { room: roomCode, status: 'FECHADA', val: 0 });
-                    document.getElementById('sensor-status').innerText = 'FECHADA';
-                }, 2000);
-            }
+            // Evita flood de mensagens (Debounce)
+            socket.emit('sensor_data', { room: roomCode, status: 'ABERTA', val: val });
+            
+            if(timeout) clearTimeout(timeout);
+
+            timeout = setTimeout(() => {
+                socket.emit('sensor_data', { room: roomCode, status: 'FECHADA', val: 0 });
+                document.getElementById('sensor-status').innerText = 'PARADO';
+                document.getElementById('sensor-status').style.color = '#10b981';
+            }, 2500); // Espera 2.5s para resetar
+        }
+
+        async function keepScreenAwake() {
+            try {
+                if ('wakeLock' in navigator) await navigator.wakeLock.request('screen');
+            } catch (e) { console.log(e); }
         }
 
         function requestPermission() {
             if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
                 DeviceMotionEvent.requestPermission()
-                    .then(response => {
-                        if (response == 'granted') {
-                            alert("Permissão concedida!");
-                        }
-                    })
+                    .then(r => r === 'granted' ? alert("OK!") : alert("Negado"))
                     .catch(console.error);
             } else {
-                alert("Seu dispositivo provavelmente já tem permissão ou não suporta a API.");
+                alert("API não requer permissão neste dispositivo.");
             }
         }
     </script>
